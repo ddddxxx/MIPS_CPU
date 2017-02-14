@@ -39,9 +39,9 @@ module cpu();
 
     // ctrl
     wire [3:0] ctr_aluop;
-    wire ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_shift_var, ctr_load_imm;
+    wire ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_shift_var, ctr_load_imm, ctr_store_half;
 
-    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys, ctr_shift_var, ctr_load_imm);
+    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys, ctr_shift_var, ctr_load_imm, ctr_store_half);
 
 
     // regfile
@@ -70,8 +70,11 @@ module cpu();
 
     // ram
     wire [31:0] ram_out;
+    wire [31:0] ram_din;
 
-    ram ram_modul(clk, alu_r1[11:2], rf_dr2, ctr_mem_we, ram_out);
+    ram ram_modul(clk, alu_r1[11:2], ram_din, ctr_mem_we, ram_out);
+
+    assign ram_din = ctr_store_half ? {ram_out[63:32], rf_dr2[31:0]} : rf_dr2;
 
     // write back
     wire [31:0] branch_target;

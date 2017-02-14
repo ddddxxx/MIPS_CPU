@@ -1,12 +1,13 @@
-module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, equ, jump_reg, jal, usign, sys, shift_var, load_imm);
+module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, equ, jump_reg, jal, usign, sys, shift_var, load_imm, store_half);
 
     input [5:0] op, funct;
     output [3:0] aluop;
-    output reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, equ, jump_reg, jal, usign, sys, shift_var, load_imm;
+    output reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, equ, jump_reg, jal, usign, sys, shift_var, load_imm, store_half;
 
     assign reg_dst = (op==6'b000000) ? 4'b1 : 4'b0;
 
     assign reg_we = ~((op==6'b101011) ||
+                         (op==6'b101001) ||
                          (op==6'b000100) ||
                          (op==6'b000101) ||
                          (op==6'b000010) ||
@@ -60,5 +61,7 @@ module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_t
     assign shift_var = ((op==6'b000000) && (funct==6'b000110)) ? 4'b1 : 4'b0;
 
     assign load_imm = (op==6'b001111) ? 4'b1 : 4'b0;
+
+    assign store_half = (op==6'b101001) ? 4'b1 : 4'b0;
 
 endmodule
