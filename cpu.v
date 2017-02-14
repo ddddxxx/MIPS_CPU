@@ -39,9 +39,9 @@ module cpu();
 
     // ctrl
     wire [3:0] ctr_aluop;
-    wire ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_shift_var;
+    wire ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_shift_var, ctr_load_imm;
 
-    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys, ctr_shift_var);
+    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys, ctr_shift_var, ctr_load_imm);
 
 
     // regfile
@@ -78,7 +78,7 @@ module cpu();
 
     assign branch_fulfill = ctr_branch ? (alu_eq ~^ ctr_equ) : 0;
     assign branch_target = {{14{inst_imm[15]}}, {inst_imm}, 2'b0} + pc4;
-    assign rf_dw = ctr_jal ? pc4 : ctr_mem_to_reg ? ram_out : alu_r1;
+    assign rf_dw = ctr_load_imm ? {{inst_imm}, 16'b0} : ctr_jal ? pc4 : ctr_mem_to_reg ? ram_out : alu_r1;
     assign pc_in = ctr_jump_reg ? rf_dr1 : ctr_jump ? {pc4[31:28], inst_addr, 2'b0} : branch_fulfill ? branch_target : pc4;
 
     // sys
