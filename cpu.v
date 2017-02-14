@@ -39,9 +39,9 @@ module cpu();
 
     // ctrl
     wire [3:0] ctr_aluop;
-    wire ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign;
+    wire ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_shift_var;
 
-    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys);
+    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_equ, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys, ctr_shift_var);
 
 
     // regfile
@@ -58,12 +58,14 @@ module cpu();
     // alu
     wire [31:0] alu_x, alu_y, alu_r1, alu_r2, imm_extended;
     wire alu_eq;
+    wire [31:0] shift_target;
 
     alu alu_modul(alu_x, alu_y, ctr_aluop, alu_r1, alu_r2, alu_eq);
 
+    assign shift_target = ctr_shift_var ? rf_dr1 : {{27{inst_shamt[4]}}, inst_shamt};
     assign imm_extended = ctr_usign ? {16'b0, inst_imm} : {{16{inst_imm[15]}}, inst_imm};
     assign alu_x = ctr_shift ? rf_dr2 : rf_dr1;
-    assign alu_y = ctr_shift ? {{27{inst_shamt[4]}}, inst_shamt} : ctr_alu_src ? imm_extended : rf_dr2;
+    assign alu_y = ctr_shift ? shift_target : ctr_alu_src ? imm_extended : rf_dr2;
 
 
     // ram
