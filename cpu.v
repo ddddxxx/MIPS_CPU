@@ -39,18 +39,21 @@ module cpu();
 
 
     // clk
-    reg clk = 0;
+    reg clk_raw = 0;
+    wire clk;
+
+    assign clk = clk_raw & ~halt;
 
     initial begin
         repeat (1600) begin
-            #10 clk = 1;
-            #10 clk = 0;
+            #10 clk_raw = 1;
+            #10 clk_raw = 0;
         end
     end
 
     // pc
     wire [31:0] pc_in, pc_next, pc, pc4;
-    register pc_modul(clk, pc_in, ~halt, pc);
+    register pc_modul(clk, pc_in, 1'b1, pc);
 
     assign pc4 = pc + 4;
 
@@ -178,13 +181,20 @@ module cpu();
     end
 
 
-    // test
-    initial begin
-        #500 interrupt_signs = 3'b1;
-        #10 interrupt_signs = 3'b0;
-        #500 interrupt_signs = 3'b1;
-        #10 interrupt_signs = 3'b0;
+    // counter
+    integer counter = 0;
+    always @(posedge clk) begin
+        counter <= counter + 1;
     end
+
+
+    // test
+    // initial begin
+    //     #500 interrupt_signs = 3'b1;
+    //     #10 interrupt_signs = 3'b0;
+    //     #500 interrupt_signs = 3'b1;
+    //     #10 interrupt_signs = 3'b0;
+    // end
 
 
 endmodule
