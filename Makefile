@@ -6,7 +6,7 @@ all:$(TEST_RESULT) cpu.vcd
 cpu.vcd:cpu.vvp
 	vvp -n $^
 
-cpu.vvp:cpu.v alu.v controller.v register.v falling_edge_register.v regfile.v ram.v rom.v
+cpu.vvp:cpu.v alu.v controller.v register.v regfile.v ram.v rom.v
 	iverilog -o $@ $^
 
 $(TEST_RESULT):%.vcd:%.vvp

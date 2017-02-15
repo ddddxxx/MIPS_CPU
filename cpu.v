@@ -39,18 +39,18 @@ module cpu();
 
 
     // clk
-    reg clk = 1;
+    reg clk = 0;
 
     initial begin
         repeat (1600) begin
-            #10 clk = 0;
             #10 clk = 1;
+            #10 clk = 0;
         end
     end
 
     // pc
     wire [31:0] pc_in, pc_next, pc, pc4;
-    falling_edge_register pc_modul(clk, pc_in, ~halt, pc);
+    register pc_modul(clk, pc_in, ~halt, pc);
 
     assign pc4 = pc + 4;
 
@@ -144,7 +144,7 @@ module cpu();
                               : interrupt3 ? 32'b0 // entrance 3
                               : 32'b0;
 
-    always @(negedge clk) begin
+    always @(posedge clk) begin
         if (has_interrupt) begin
             interrupt_disable <= 1'b1;
         end
