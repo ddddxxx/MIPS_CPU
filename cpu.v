@@ -2,40 +2,6 @@ module cpu();
 
     // interrupt
     reg [2:0] interrupt_signs = 3'b0;   // io
-    wire interrupt_sign1, interrupt_sign2, interrupt_sign3;
-
-    assign interrupt_sign1 = interrupt_signs[2];
-    assign interrupt_sign2 = interrupt_signs[1];
-    assign interrupt_sign3 = interrupt_signs[0];
-
-    reg interrupt_reg1 = 1'b0, interrupt_reg2 = 1'b0, interrupt_reg3 = 1'b0;
-
-    always @(posedge clk, posedge interrupt_sign1) begin
-        if (interrupt_sign1) begin
-            interrupt_reg1 <= 1;
-        end
-        else begin
-            interrupt_reg1 <= 0;
-        end
-    end
-
-    always @(posedge clk, posedge interrupt_sign2) begin
-        if (interrupt_sign2) begin
-            interrupt_reg2 <= 1;
-        end
-        else begin
-            interrupt_reg2 <= 0;
-        end
-    end
-
-    always @(posedge clk, posedge interrupt_sign3) begin
-        if (interrupt_sign3) begin
-            interrupt_reg3 <= 1;
-        end
-        else begin
-            interrupt_reg3 <= 0;
-        end
-    end
 
 
     // clk
@@ -50,6 +16,7 @@ module cpu();
             #10 clk_raw = 0;
         end
     end
+
 
     // pc
     wire [31:0] pc_in, pc_next, pc, pc4;
@@ -133,18 +100,18 @@ module cpu();
     reg interrupt_disable = 1'b0;
     reg [2:0] interrupt_mask = 3'b0;
     wire [31:0] interrupt_entrance, epc;
-    wire interrupt1, interrupt2, interrupt3, has_interrupt;
+    wire [2:0] interrupts;
+    wire has_interrupt;
 
     register epc_reg(clk, pc_next, has_interrupt, epc);
 
-    assign interrupt1 = ~interrupt_disable & ~interrupt_mask[2] & interrupt_reg1;
-    assign interrupt2 = ~interrupt1 & ~interrupt_disable & ~interrupt_mask[1] & interrupt_reg2;
-    assign interrupt3 = ~interrupt1 & ~interrupt2 & ~interrupt_disable & ~interrupt_mask[0] & interrupt_reg3;
-    assign has_interrupt = interrupt1 || interrupt2 || interrupt3;
+    interrupt_driver interrupt_driver_modul(clk, interrupt_signs, interrupt_mask, interrupt_disable, interrupts);
 
-    assign interrupt_entrance = interrupt1 ? 32'b0 // entrance 1
-                              : interrupt2 ? 32'b0 // entrance 2
-                              : interrupt3 ? 32'h36c // entrance 3
+    assign has_interrupt = |interrupts;
+
+    assign interrupt_entrance = interrupts[2] ? 32'b0 // entrance 1
+                              : interrupts[1] ? 32'b0 // entrance 2
+                              : interrupts[0] ? 32'h36c // entrance 3
                               : 32'b0;
 
     always @(posedge clk) begin
@@ -155,6 +122,7 @@ module cpu();
             interrupt_disable <= 1'b1;
         end
     end
+
 
     // write back
     wire branch_fulfill;
@@ -189,12 +157,14 @@ module cpu();
 
 
     // test
-    // initial begin
-    //     #500 interrupt_signs = 3'b1;
-    //     #10 interrupt_signs = 3'b0;
-    //     #500 interrupt_signs = 3'b1;
-    //     #10 interrupt_signs = 3'b0;
-    // end
+    initial begin
+        #20 interrupt_signs = 3'b1;
+        #500 interrupt_signs = 3'b0;
+        #1000 interrupt_signs = 3'b1;
+        #20 interrupt_signs = 3'b0;
+        #1000 interrupt_signs = 3'b1;
+        #20 interrupt_signs = 3'b0;
+    end
 
 
 endmodule
