@@ -132,7 +132,7 @@ module cpu();
     wire [31:0] interrupt_entrance, epc;
     wire interrupt1, interrupt2, interrupt3, has_interrupt;
 
-    falling_edge_register epc_reg(clk, pc_next, has_interrupt, epc);
+    register epc_reg(clk, pc_next, has_interrupt, epc);
 
     assign interrupt1 = ~interrupt_disable & ~interrupt_mask[2] & interrupt_reg1;
     assign interrupt2 = ~interrupt1 & ~interrupt_disable & ~interrupt_mask[1] & interrupt_reg2;
