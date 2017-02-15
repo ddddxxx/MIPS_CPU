@@ -80,7 +80,7 @@ module cpu();
     // write back
     wire [31:0] branch_target;
 
-    assign branch_fulfill = ctr_branch ? (alu_leq ? ctr_branch_leq : (alu_eq ~^ ctr_branch_eq)) : 0;
+    assign branch_fulfill = ctr_branch ? (ctr_branch_leq ? alu_leq : (alu_eq ~^ ctr_branch_eq)) : 0;
     assign branch_target = {{14{inst_imm[15]}}, {inst_imm}, 2'b0} + pc4;
     assign rf_dw = ctr_load_imm ? {{inst_imm}, 16'b0} : ctr_jal ? pc4 : ctr_mem_to_reg ? ram_out : alu_r1;
     assign pc_in = ctr_jump_reg ? rf_dr1 : ctr_jump ? {pc4[31:28], inst_addr, 2'b0} : branch_fulfill ? branch_target : pc4;
