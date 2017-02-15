@@ -9,7 +9,7 @@ module rom(addr, data);
 
     initial begin
         // $readmemh("benchmark.txt", mem, 0, 218);
-        $readmemh("bmz.txt", mem, 0, 218);
+        $readmemh("bmz.txt", mem, 0, 227);
     end
 
 endmodule

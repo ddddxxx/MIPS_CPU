@@ -141,11 +141,14 @@ module cpu();
 
     assign interrupt_entrance = interrupt1 ? 32'b0 // entrance 1
                               : interrupt2 ? 32'b0 // entrance 2
-                              : interrupt3 ? 32'b0 // entrance 3
+                              : interrupt3 ? 32'h36c // entrance 3
                               : 32'b0;
 
     always @(posedge clk) begin
-        if (has_interrupt) begin
+        if (ctr_exce_ret) begin
+            interrupt_disable <= 1'b0;
+        end
+        else if (has_interrupt) begin
             interrupt_disable <= 1'b1;
         end
     end
@@ -176,10 +179,12 @@ module cpu();
 
 
     // test
-    // initial begin
-    //     #500 interrupt_signs = 3'b1;
-    //     #50 interrupt_signs = 3'b0;
-    // end
+    initial begin
+        #500 interrupt_signs = 3'b1;
+        #10 interrupt_signs = 3'b0;
+        #500 interrupt_signs = 3'b1;
+        #10 interrupt_signs = 3'b0;
+    end
 
 
 endmodule
