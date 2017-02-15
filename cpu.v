@@ -1,5 +1,6 @@
 module cpu();
 
+    // clk
     reg clk = 1;
 
     initial begin
@@ -16,7 +17,7 @@ module cpu();
     assign pc4 = pc + 4;
 
 
-    // rom, instruction
+    // instruction
     wire [9:0] rom_addr;
     wire [31:0] instruction;
     wire [25:0] inst_addr;

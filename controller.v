@@ -7,11 +7,11 @@ module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_t
     assign reg_dst = (op==6'b000000) ? 4'b1 : 4'b0;
 
     assign reg_we = ~((op==6'b101011) ||
-                         (op==6'b101001) ||
-                         (op==6'b000100) ||
-                         (op==6'b000101) ||
-                         (op==6'b000010) ||
-                         ((op==6'b000000) && ((funct==6'b001000) || (funct==6'b001100))));
+                      (op==6'b101001) ||
+                      (op==6'b000100) ||
+                      (op==6'b000101) ||
+                      (op==6'b000010) ||
+                      ((op==6'b000000) && ((funct==6'b001000) || (funct==6'b001100))));
 
     assign aluop = ((op==6'b001000) ||
                     (op==6'b001001) ||
