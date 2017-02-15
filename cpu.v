@@ -8,18 +8,33 @@ module cpu();
     assign interrupt_sign2 = interrupt_signs[1];
     assign interrupt_sign3 = interrupt_signs[0];
 
-    reg [2:0] interrupt_reg = 3'b0;
+    reg interrupt_reg1 = 1'b0, interrupt_reg2 = 1'b0, interrupt_reg3 = 1'b0;
 
-    always @(posedge interrupt_sign1) begin
-        interrupt_reg[2] <= 1;
+    always @(posedge clk, posedge interrupt_sign1) begin
+        if (interrupt_sign1) begin
+            interrupt_reg1 <= 1;
+        end
+        else begin
+            interrupt_reg1 <= 0;
+        end
     end
 
-    always @(posedge interrupt_sign2) begin
-        interrupt_reg[1] <= 1;
+    always @(posedge clk, posedge interrupt_sign2) begin
+        if (interrupt_sign2) begin
+            interrupt_reg2 <= 1;
+        end
+        else begin
+            interrupt_reg2 <= 0;
+        end
     end
 
-    always @(posedge interrupt_sign3) begin
-        interrupt_reg[0] <= 1;
+    always @(posedge clk, posedge interrupt_sign3) begin
+        if (interrupt_sign3) begin
+            interrupt_reg3 <= 1;
+        end
+        else begin
+            interrupt_reg3 <= 0;
+        end
     end
 
 
@@ -119,9 +134,9 @@ module cpu();
 
     falling_edge_register epc_reg(clk, pc_next, has_interrupt, epc);
 
-    assign interrupt1 = ~interrupt_disable & ~interrupt_mask[2] & interrupt_reg[2];
-    assign interrupt2 = ~interrupt1 & ~interrupt_disable & ~interrupt_mask[1] & interrupt_reg[1];
-    assign interrupt3 = ~interrupt1 & ~interrupt2 & ~interrupt_disable & ~interrupt_mask[0] & interrupt_reg[0];
+    assign interrupt1 = ~interrupt_disable & ~interrupt_mask[2] & interrupt_reg1;
+    assign interrupt2 = ~interrupt1 & ~interrupt_disable & ~interrupt_mask[1] & interrupt_reg2;
+    assign interrupt3 = ~interrupt1 & ~interrupt2 & ~interrupt_disable & ~interrupt_mask[0] & interrupt_reg3;
     assign has_interrupt = interrupt1 || interrupt2 || interrupt3;
 
     assign interrupt_entrance = interrupt1 ? 32'b0 // entrance 1
