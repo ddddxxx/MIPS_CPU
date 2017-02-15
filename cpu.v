@@ -1,5 +1,9 @@
 module cpu();
 
+    // interrupt
+    reg [2:0] interrupt_signs = 3'b0;
+
+
     // clk
     reg clk = 1;
 
@@ -11,7 +15,7 @@ module cpu();
     end
 
     // pc
-    wire [31:0] pc_in, pc, pc4;
+    wire [31:0] pc_in, pc_next, pc, pc4;
     falling_edge_register pc_modul(clk, pc_in, ~halt, pc);
 
     assign pc4 = pc + 4;
@@ -77,13 +81,15 @@ module cpu();
 
     assign ram_din = ctr_store_half ? {ram_out[63:32], rf_dr2[31:0]} : rf_dr2;
 
+
     // write back
     wire [31:0] branch_target;
 
     assign branch_fulfill = ctr_branch ? (ctr_branch_leq ? alu_leq : (alu_eq ~^ ctr_branch_eq)) : 0;
     assign branch_target = {{14{inst_imm[15]}}, {inst_imm}, 2'b0} + pc4;
     assign rf_dw = ctr_load_imm ? {{inst_imm}, 16'b0} : ctr_jal ? pc4 : ctr_mem_to_reg ? ram_out : alu_r1;
-    assign pc_in = ctr_jump_reg ? rf_dr1 : ctr_jump ? {pc4[31:28], inst_addr, 2'b0} : branch_fulfill ? branch_target : pc4;
+    assign pc_next = ctr_jump_reg ? rf_dr1 : ctr_jump ? {pc4[31:28], inst_addr, 2'b0} : branch_fulfill ? branch_target : pc4;
+
 
     // sys
     wire [31:0] display;
@@ -94,10 +100,45 @@ module cpu();
 
     assign halt_enable = (ctr_sys && rf_dr2==32'ha);
 
+
+    // cp0
+    reg interrupt_disable = 1'b0;
+    reg [2:0] interrupt_mask = 3'b0;
+    wire [31:0] interrupt_entrance, epc;
+    wire interrupt1, interrupt2, interrupt3, has_interrupt;
+
+    falling_edge_register epc_reg(clk, pc_next, has_interrupt, epc);
+
+    assign interrupt1 = ~interrupt_disable & ~interrupt_mask[2] & interrupt_signs[2];
+    assign interrupt2 = ~interrupt_disable & ~interrupt_mask[1] & interrupt_signs[1];
+    assign interrupt3 = ~interrupt_disable & ~interrupt_mask[0] & interrupt_signs[0];
+    assign has_interrupt = interrupt1 || interrupt2 || interrupt3;
+
+    assign interrupt_entrance = interrupt1 ? 32'b0 : 32'bz, // entrance 1
+           interrupt_entrance = interrupt2 ? 32'b0 : 32'bz, // entrance 2
+           interrupt_entrance = interrupt3 ? 32'b0 : 32'bz; // entrance 3
+
+    assign pc_in = has_interrupt ? interrupt_entrance : pc_next;
+
+    always @(negedge clk) begin
+        if (has_interrupt) begin
+            interrupt_disable <= 1'b1;
+        end
+    end
+
+
     // output
     initial begin
         $dumpfile("cpu.vcd");
         $dumpvars(2, cpu);
     end
+
+
+    // test
+    // initial begin
+    //     #500 interrupt_signs = 3'b1;
+    //     #50 interrupt_signs = 3'b0;
+    // end
+
 
 endmodule
