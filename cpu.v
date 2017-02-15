@@ -22,16 +22,16 @@ module cpu();
 
 
     // instruction
-    wire [9:0] rom_addr;
+    wire [9:0] inst_index;
     wire [31:0] instruction;
     wire [25:0] inst_addr;
     wire [15:0] inst_imm;
     wire [5:0] inst_op, inst_funct;
     wire [4:0] inst_rs, inst_rt, inst_rd, inst_shamt;
 
-    rom rom_modul(rom_addr, instruction);
+    rom rom_modul(inst_index, instruction);
 
-    assign rom_addr = pc[11:2];
+    assign inst_index = pc[11:2];
     assign inst_addr = instruction[25:0];
     assign inst_imm = instruction[15:0];
     assign inst_op = instruction[31:26];
@@ -44,20 +44,20 @@ module cpu();
 
     // ctrl
     wire [3:0] ctr_aluop;
-    wire ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_branch_eq, ctr_branch_leq, ctr_jump_reg, ctr_jal, ctr_usign, ctr_shift_var, ctr_load_imm, ctr_store_half;
+    wire ctr_rf_dst, ctr_rf_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_branch_eq, ctr_branch_leq, ctr_jump_reg, ctr_jal, ctr_usign, ctr_shift_var, ctr_load_imm, ctr_store_half;
 
-    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_reg_dst, ctr_reg_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_branch_eq, ctr_branch_leq, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys, ctr_shift_var, ctr_load_imm, ctr_store_half);
+    controller ctrl_modul(inst_op, inst_funct, ctr_aluop, ctr_rf_dst, ctr_rf_we, ctr_branch, ctr_jump, ctr_mem_we, ctr_mem_to_reg, ctr_alu_src, ctr_shift, ctr_branch_eq, ctr_branch_leq, ctr_jump_reg, ctr_jal, ctr_usign, ctr_sys, ctr_shift_var, ctr_load_imm, ctr_store_half);
 
 
     // regfile
     wire [4:0] rf_ar1, rf_ar2, rf_aw;
     wire [31:0] rf_dr1, rf_dr2, rf_dw;
 
-    regfile regfile_modul(clk, rf_ar1, rf_ar2, rf_aw, ctr_reg_we, rf_dw, rf_dr1, rf_dr2);
+    regfile regfile_modul(clk, rf_ar1, rf_ar2, rf_aw, ctr_rf_we, rf_dw, rf_dr1, rf_dr2);
 
     assign rf_ar1 = ctr_sys ? 32'h4 : inst_rs;
     assign rf_ar2 = ctr_sys ? 32'h2 : inst_rt;
-    assign rf_aw = ctr_jal ? 32'h1f : ctr_reg_dst ? inst_rd : inst_rt;
+    assign rf_aw = ctr_jal ? 32'h1f : ctr_rf_dst ? inst_rd : inst_rt;
 
 
     // alu
@@ -80,15 +80,6 @@ module cpu();
     ram ram_modul(clk, alu_r1[11:2], ram_din, ctr_mem_we, ram_out);
 
     assign ram_din = ctr_store_half ? {ram_out[63:32], rf_dr2[31:0]} : rf_dr2;
-
-
-    // write back
-    wire [31:0] branch_target;
-
-    assign branch_fulfill = ctr_branch ? (ctr_branch_leq ? alu_leq : (alu_eq ~^ ctr_branch_eq)) : 0;
-    assign branch_target = {{14{inst_imm[15]}}, {inst_imm}, 2'b0} + pc4;
-    assign rf_dw = ctr_load_imm ? {{inst_imm}, 16'b0} : ctr_jal ? pc4 : ctr_mem_to_reg ? ram_out : alu_r1;
-    assign pc_next = ctr_jump_reg ? rf_dr1 : ctr_jump ? {pc4[31:28], inst_addr, 2'b0} : branch_fulfill ? branch_target : pc4;
 
 
     // sys
@@ -118,13 +109,22 @@ module cpu();
            interrupt_entrance = interrupt2 ? 32'b0 : 32'bz, // entrance 2
            interrupt_entrance = interrupt3 ? 32'b0 : 32'bz; // entrance 3
 
-    assign pc_in = has_interrupt ? interrupt_entrance : pc_next;
 
     always @(negedge clk) begin
         if (has_interrupt) begin
             interrupt_disable <= 1'b1;
         end
     end
+
+    // write back
+    wire branch_fulfill;
+    wire [31:0] branch_target;
+
+    assign branch_fulfill = ctr_branch ? (ctr_branch_leq ? alu_leq : (alu_eq ~^ ctr_branch_eq)) : 0;
+    assign branch_target = {{14{inst_imm[15]}}, {inst_imm}, 2'b0} + pc4;
+    assign rf_dw = ctr_load_imm ? {{inst_imm}, 16'b0} : ctr_jal ? pc4 : ctr_mem_to_reg ? ram_out : alu_r1;
+    assign pc_next = ctr_jump_reg ? rf_dr1 : ctr_jump ? {pc4[31:28], inst_addr, 2'b0} : branch_fulfill ? branch_target : pc4;
+    assign pc_in = has_interrupt ? interrupt_entrance : pc_next;
 
 
     // output
