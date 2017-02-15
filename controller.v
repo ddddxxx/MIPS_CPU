@@ -1,8 +1,8 @@
-module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, equ, jump_reg, jal, usign, sys, shift_var, load_imm, store_half);
+module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, branch_eq, branch_leq, jump_reg, jal, usign, sys, shift_var, load_imm, store_half);
 
     input [5:0] op, funct;
     output [3:0] aluop;
-    output reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, equ, jump_reg, jal, usign, sys, shift_var, load_imm, store_half;
+    output reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, shift, branch_eq, branch_leq, jump_reg, jal, usign, sys, shift_var, load_imm, store_half;
 
     assign reg_dst = (op==6'b000000) ? 4'b1 : 4'b0;
 
@@ -36,7 +36,7 @@ module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_t
            aluop = ((op==6'b000010) || (op==6'b000011)) ? 4'b0101 : 4'bz, // fill
            aluop = ((op==6'b000000) && ((funct==6'b001000) || (funct==6'b001100))) ? 4'b0101 : 4'bz;  // fill
 
-    assign branch = (op[5:1]==5'b00010) ? 4'b1 : 4'b0;
+    assign branch = ((op[5:1]==5'b00010) || (op==6'b000110)) ? 4'b1 : 4'b0;
 
     assign jump = (op[5:1]==5'b00001) ? 4'b1 : 4'b0;
 
@@ -48,7 +48,9 @@ module controller(op, funct, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_t
 
     assign shift = ((op==6'b000000) && ((funct==6'b000000) || (funct[5:1]==5'b00001) || ((funct==6'b000110)))) ? 4'b1 : 4'b0;
 
-    assign equ = (op==6'b000100) ? 4'b1 : 4'b0;
+    assign branch_eq = (op==6'b000100) ? 4'b1 : 4'b0;
+
+    assign branch_leq = (op==6'b000110) ? 4'b1 : 4'b0;
 
     assign jump_reg = ((op==6'b000000) && (funct==6'b001000)) ? 4'b1 : 4'b0;
 
