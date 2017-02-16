@@ -7,8 +7,8 @@ module regfile(clk, a1, a2, aw, WE, din, r1, r2);
 
     reg [31:0] regs[0:31];
 
-    assign r1 = regs[a1];
-    assign r2 = regs[a2];
+    assign r1 = |a1 ? regs[a1] : 0;
+    assign r2 = |a2 ? regs[a2] : 0;
 
     always @(posedge clk) begin
         if (WE) begin
@@ -22,5 +22,16 @@ module regfile(clk, a1, a2, aw, WE, din, r1, r2);
             regs[i] = 0;
         end
     end
+
+    //debug
+    wire [31:0] sp, s0, s1, t0, t1, a0, v0;
+
+    assign sp = regs[29];
+    assign s0 = regs[16];
+    assign s1 = regs[17];
+    assign t0 = regs[8];
+    assign t1 = regs[9];
+    assign a0 = regs[4];
+    assign v0 = regs[2];
 
 endmodule

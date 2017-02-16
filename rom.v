@@ -9,7 +9,8 @@ module rom(addr, data);
 
     initial begin
         $readmemh("benchmark.txt", mem, 0, 218);
-        $readmemh("ISR1.txt", mem, 'h100, 'h108);
+        $readmemh("ISR2.txt", mem, 'h180, 'h1ab);
+        $readmemh("ISR3.txt", mem, 'h200, 'h227);
     end
 
 endmodule
