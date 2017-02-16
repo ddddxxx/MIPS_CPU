@@ -180,14 +180,14 @@ module cpu();
     end
 
 
-    // test
-    initial begin
-        #1000 interrupt_signs = 3'b1;
-        #700 interrupt_signs = 3'b10;
-        #20 interrupt_signs = 3'b00;
-        #100 interrupt_signs = 3'b10;
-        #20 interrupt_signs = 3'b00;
-    end
+    // test interrupt
+    // initial begin
+    //     #1000 interrupt_signs = 3'b1;
+    //     #700 interrupt_signs = 3'b10;
+    //     #20 interrupt_signs = 3'b00;
+    //     #100 interrupt_signs = 3'b10;
+    //     #20 interrupt_signs = 3'b00;
+    // end
 
 
 endmodule
