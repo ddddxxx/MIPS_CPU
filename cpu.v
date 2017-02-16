@@ -67,10 +67,10 @@ module cpu();
 
     // alu
     wire [31:0] alu_x, alu_y, alu_r1, alu_r2, imm_extended;
-    wire alu_eq, alu_leq;
+    wire alu_eq;
     wire [31:0] shift_target;
 
-    alu alu_modul(alu_x, alu_y, ctr_aluop, alu_r1, alu_r2, alu_eq, alu_leq);
+    alu alu_modul(alu_x, alu_y, ctr_aluop, alu_r1, alu_r2, alu_eq);
 
     assign shift_target = ctr_shift_var ? rf_dr1 : {{27{inst_shamt[4]}}, inst_shamt};
     assign imm_extended = ctr_usign ? {16'b0, inst_imm} : {{16{inst_imm[15]}}, inst_imm};
@@ -84,7 +84,7 @@ module cpu();
 
     ram ram_modul(clk, alu_r1[11:2], ram_din, ctr_mem_we, ram_out);
 
-    assign ram_din = ctr_store_half ? {ram_out[63:32], rf_dr2[31:0]} : rf_dr2;
+    assign ram_din = ctr_store_half ? {ram_out[31:16], rf_dr2[15:0]} : rf_dr2;
 
 
     // sys
@@ -147,10 +147,11 @@ module cpu();
 
 
     // write back
-    wire branch_fulfill;
+    wire rs_leq, branch_fulfill;
     wire [31:0] branch_target;
 
-    assign branch_fulfill = ctr_branch ? (ctr_branch_leq ? alu_leq : (alu_eq ~^ ctr_branch_eq)) : 0;
+    assign rs_leq = ($signed(rf_dr1)<=$signed(0)) ? 1'b1 : 1'b0;
+    assign branch_fulfill = ctr_branch ? (ctr_branch_leq ? rs_leq : (alu_eq ~^ ctr_branch_eq)) : 0;
     assign branch_target = {{14{inst_imm[15]}}, {inst_imm}, 2'b0} + pc4;
     assign rf_dw = ctr_mfc0 ? cp0_out
                  : ctr_load_imm ? {{inst_imm}, 16'b0}

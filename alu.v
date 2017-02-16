@@ -1,4 +1,4 @@
-module alu(x, y, op, result1, result2, equ, leq);
+module alu(x, y, op, result1, result2, equ);
 
     input [3:0] op;
     input [31:0] x, y;
@@ -28,7 +28,5 @@ module alu(x, y, op, result1, result2, equ, leq);
            result2 = (op==4'h4) ? x % y : 32'hz;
 
     assign equ = (x==y);
-
-    assign leq = (x<=y);
 
 endmodule

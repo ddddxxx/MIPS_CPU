@@ -4,7 +4,7 @@ module alu_test();
     reg [31:0] x, y;
     wire [31:0] result1, result2;
 
-    alu test(x, y, op, result1, result2, equ, leq);
+    alu test(x, y, op, result1, result2, equ);
 
     initial begin
         op = 4'b0;

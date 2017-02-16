@@ -28,12 +28,12 @@ module controller(op, funct, mf, aluop, reg_dst, reg_we, branch, jump, mem_we, m
                     ((op==6'b000000) && (funct==6'b100101))) ? 4'b1000 : 4'bz,  // Or
            aluop = ((op==6'b000000) && (funct==6'b100111)) ? 4'b1010 : 4'bz,    // Nor
            aluop = ((op==6'b100011) ||
-                    (op==6'b101011)) ? 4'b0101 : 4'bz, // Load / Store Word
+                    (op==6'b101011) ||
+                    (op==6'b101001)) ? 4'b0101 : 4'bz, // Load / Store Word, sh
            aluop = ((op==6'b001010) ||
                     ((op==6'b000000) && (funct==6'b101010))) ? 4'b1011 : 4'bz,  // Set Less Than
            aluop = ((op==6'b000000) && (funct==6'b101011)) ? 4'b1100: 4'bz,     // Set Less Than Unsigned
-           aluop = ((op==6'b000000) && (funct==6'b000100)) ? 4'b0000: 4'bz,     // SLLV
-           aluop = ((op==6'b000000) && (funct==6'b000111)) ? 4'b0001: 4'bz,     // SRAV
+           aluop = ((op==6'b000000) && (funct==6'b000110)) ? 4'b0010: 4'bz,     // SRLV
 
            aluop = ((op==6'b000010) || (op==6'b000011)) ? 4'b0101 : 4'bz, // fill
            aluop = ((op==6'b000000) && ((funct==6'b001000) || (funct==6'b001100))) ? 4'b0101 : 4'bz;  // fill
@@ -42,7 +42,7 @@ module controller(op, funct, mf, aluop, reg_dst, reg_we, branch, jump, mem_we, m
 
     assign jump = (op[5:1]==5'b00001) ? 4'b1 : 4'b0;
 
-    assign mem_we = (op==6'b101011) ? 4'b1 : 4'b0;
+    assign mem_we = ((op==6'b101011) || (op==6'b101001)) ? 4'b1 : 4'b0; // sw, sh
 
     assign mem_to_reg = (op==6'b100011) ? 4'b1 : 4'b0;
 
