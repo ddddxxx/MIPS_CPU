@@ -8,7 +8,8 @@ module rom(addr, data);
     assign data = mem[addr];
 
     initial begin
-        $readmemh("bmz.txt", mem, 0, 227);
+        $readmemh("benchmark.txt", mem, 0, 218);
+        $readmemh("ISR1.txt", mem, 'h100, 'h108);
     end
 
 endmodule

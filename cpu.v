@@ -111,7 +111,7 @@ module cpu();
 
     assign interrupt_entrance = interrupts[2] ? 32'b0 // entrance 1
                               : interrupts[1] ? 32'b0 // entrance 2
-                              : interrupts[0] ? 32'h36c // entrance 3
+                              : interrupts[0] ? 32'h400 // entrance 3
                               : 32'b0;
 
     always @(posedge clk) begin
