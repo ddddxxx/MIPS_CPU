@@ -6,6 +6,8 @@ A MIPS architecture CPU with 5 pipeline stages.
 
 ## Instructions
 
+From the [project directory](source/), run the following:
+
 Build
 
 ```
