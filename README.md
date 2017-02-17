@@ -25,3 +25,7 @@ Clean up
 ```
 $ make clean
 ```
+
+## Requirement
+
+- [Icarus Verilog](http://iverilog.icarus.com)
