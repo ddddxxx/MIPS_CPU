@@ -45,6 +45,7 @@ module cpu();
     assign inst_shamt = instruction[10:6];
     assign inst_funct = instruction[5:0];
     assign inst_mf = instruction[25:21];
+    assign inst_imm = {{16{instruction[15]}}, instruction[15:0]};
 
 
     // ctrl
@@ -66,16 +67,15 @@ module cpu();
 
 
     // alu
-    wire [31:0] alu_x, alu_y, alu_r1, alu_r2, imm_extended;
+    wire [31:0] alu_x, alu_y, alu_r1, alu_r2;
     wire alu_eq;
     wire [31:0] shift_target;
 
     alu alu_modul(alu_x, alu_y, ctr_aluop, alu_r1, alu_r2, alu_eq);
 
     assign shift_target = ctr_shift_var ? rf_dr1 : {{27{inst_shamt[4]}}, inst_shamt};
-    assign imm_extended = ctr_usign ? {16'b0, inst_imm} : {{16{inst_imm[15]}}, inst_imm};
     assign alu_x = ctr_shift ? rf_dr2 : rf_dr1;
-    assign alu_y = ctr_shift ? shift_target : ctr_alu_src ? imm_extended : rf_dr2;
+    assign alu_y = ctr_shift ? shift_target : ctr_alu_src ? inst_imm : rf_dr2;
 
 
     // ram
