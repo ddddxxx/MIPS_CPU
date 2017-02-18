@@ -11,17 +11,17 @@ module cpu();
     assign clk = clk_raw & ~halt;
 
     initial begin
+        repeat (4100) begin
+            #2 clk_raw = 1;
+            #2 clk_raw = 0;
+        end
         // repeat (1600) begin
         //     #10 clk_raw = 1;
         //     #10 clk_raw = 0;
         // end
-        repeat (50) begin
-            #10 clk_raw = 1;
-            #10 clk_raw = 0;
-        end
     end
 
-    wire rst_ID, rst_EX, rst_MEM, rst_WB, pause_IF;
+    wire rst_ID, rst_EX, rst_MEM, rst_WB, pause_IF, pause_ID;
 
 /* ================= IF ================= */
 
@@ -32,9 +32,9 @@ module cpu();
     assign pc4_IF = pc + 4;
     assign inst_index = pc[11:2];
 
-    assign pc_in = pc4_IF;
+    assign pc_we = ~pause_IF;
 
-    register pc_modul(clk, pc_in, 1'b1, pc);
+    register pc_modul(clk, pc_in, pc_we, pc);
 
     rom rom_modul(inst_index, instruction_IF);
 
@@ -42,14 +42,16 @@ module cpu();
 
     reg [31:0] pc4_ID=0, instruction_ID=0;
 
-    always @(posedge clk or posedge rst_ID) begin
-        if (rst_ID) begin
-            instruction_ID <= 32'b0;
-            pc4_ID <= 32'b0;
-        end
-        else begin
-            instruction_ID <= instruction_IF;
-            pc4_ID <= pc4_IF;
+    always @(posedge clk) begin
+        if (~pause_ID) begin
+            if (rst_ID) begin
+                instruction_ID <= 32'b0;
+                pc4_ID <= 32'b0;
+            end
+            else begin
+                instruction_ID <= instruction_IF;
+                pc4_ID <= pc4_IF;
+            end
         end
     end
 
@@ -97,7 +99,7 @@ module cpu();
     assign rs_leq = ($signed(rf_dr1_ID)<=$signed(0)) ? 1'b1 : 1'b0;
     assign rf_equ = (rf_dr1_ID==rf_dr2_ID);
     assign branch_fulfill = ctr_branch_ID ? (ctr_branch_leq_ID ? rs_leq : (rf_equ ~^ ctr_branch_eq_ID)) : 0;
-    assign branch_target = {inst_imm_ID[31:2], 2'b0} + pc4_ID;
+    assign branch_target = {inst_imm_ID[29:0], 2'b0} + pc4_ID;
     assign pc_change = ctr_jump_reg_ID | ctr_jump_ID | branch_fulfill;
     assign pc_next = /* ctr_exce_ret_ID ? epc
                    : */ ctr_jump_reg_ID ? rf_dr1_ID
@@ -113,7 +115,7 @@ module cpu();
     reg ctr_rf_we_EX=0, ctr_mem_we_EX=0, ctr_mem_to_reg_EX=0, ctr_alu_src_EX=0, ctr_shift_EX=0, ctr_jal_EX=0, ctr_sys_EX=0, ctr_shift_var_EX=0, ctr_load_imm_EX=0, ctr_store_half_EX=0, ctr_exce_ret_EX=0, ctr_mfc0_EX=0, ctr_mtc0_EX=0;
     reg [4:0] rf_aw_EX=0;
 
-    always @(posedge clk or posedge rst_EX) begin
+    always @(posedge clk) begin
         if (rst_EX) begin
             pc4_EX <= 0;
             rf_dr1_EX <= 0;
@@ -187,7 +189,7 @@ module cpu();
     reg [4:0] rf_aw_MEM=0;
     reg halt_MEM=0;
 
-    always @(posedge clk or posedge rst_MEM) begin
+    always @(posedge clk) begin
         if (rst_MEM) begin
             pc4_MEM <= 0;
             alu_r1_MEM <= 0;
@@ -243,7 +245,7 @@ module cpu();
     reg ctr_mfc0_WB=0, ctr_load_imm_WB=0, ctr_jal_WB=0, ctr_mem_to_reg_WB=0;
     reg halt_WB=0;
 
-    always @(posedge clk or posedge rst_WB) begin
+    always @(posedge clk) begin
         if (rst_WB) begin
             pc4_WB <= 0;
             alu_r1_WB <= 0;
@@ -283,6 +285,22 @@ module cpu();
     register #(.width(1)) halt_reg(clk, 1'b1, halt_WB, halt);
 
 /* ================= WB ================= */
+
+    wire rf_conflict_EX, rf_conflict_MEM, rf_conflict_WB, rf_conflict;
+
+    assign rf_conflict_EX = ctr_rf_we_EX & |rf_aw_EX & ((rf_aw_EX==rf_ar1) | (rf_aw_EX==rf_ar2));
+    assign rf_conflict_MEM = ctr_rf_we_MEM & |rf_aw_MEM & ((rf_aw_MEM==rf_ar1) | (rf_aw_MEM==rf_ar2));
+    assign rf_conflict_WB = ctr_rf_we_WB & |rf_aw_WB & ((rf_aw_WB==rf_ar1) | (rf_aw_WB==rf_ar2));
+    assign rf_conflict = rf_conflict_EX | rf_conflict_MEM | rf_conflict_WB;
+
+    assign pc_in = pc_change ? pc_next : pc4_IF;
+    assign rst_ID = pc_change;
+
+    assign pause_IF = rf_conflict;
+    assign rst_EX = rf_conflict;
+    assign pause_ID = rf_conflict;
+
+
 /*
     // cp0
     wire interrupt_disable, interrupt_disable_next;
@@ -341,9 +359,16 @@ module cpu();
 
 
     // counter
-    integer counter = 0;
+    integer clk_cnt = 0;
     always @(posedge clk) begin
-        counter <= counter + 1;
+        clk_cnt <= clk_cnt + 1;
+    end
+
+    integer conflict_cnt = 0;
+    always @(posedge clk) begin
+        if (rf_conflict) begin
+            conflict_cnt = conflict_cnt + 1;
+        end
     end
 
 
