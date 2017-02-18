@@ -56,7 +56,7 @@ module cpu();
 /* ================= ID ================= */
 
     wire [25:0] inst_addr_ID;
-    wire [31:0] inst_imm;
+    wire [31:0] inst_imm_ID;
     wire [5:0] inst_op, inst_funct;
     wire [4:0] inst_rs, inst_rt_ID, inst_rd_ID, inst_shamt_ID, inst_mf;
 
@@ -90,13 +90,27 @@ module cpu();
     assign rf_ar2 = ctr_sys_ID ? 32'h2 : inst_rt_ID;
     assign rf_aw_ID = ctr_jal_ID ? 5'h1f : ctr_rf_dst_ID ? inst_rd_ID : inst_rt_ID;
 
+    // branch
+    wire rs_leq, branch_fulfill;
+    wire [31:0] branch_target;
+
+    assign rs_leq = ($signed(rf_dr1_ID)<=$signed(0)) ? 1'b1 : 1'b0;
+    assign rf_equ = (rf_dr1_ID==rf_dr2_ID);
+    assign branch_fulfill = ctr_branch_ID ? (ctr_branch_leq_ID ? rs_leq : (rf_equ ~^ ctr_branch_eq_ID)) : 0;
+    assign branch_target = {inst_imm_ID[31:2], 2'b0} + pc4_ID;
+    assign pc_change = ctr_jump_reg_ID | ctr_jump_ID | branch_fulfill;
+    assign pc_next = /* ctr_exce_ret_ID ? epc
+                   : */ ctr_jump_reg_ID ? rf_dr1_ID
+                   : ctr_jump_ID ? {pc4_ID[31:28], inst_addr_ID, 2'b0}
+                   : branch_fulfill ? branch_target
+                   : pc4_ID;
+
 /* ================= ID ================= */
 
     reg [31:0] pc4_EX=0, rf_dr1_EX=0, rf_dr2_EX=0, inst_imm_EX=0;
-    reg [25:0] inst_addr_EX=0;
-    reg [4:0] inst_rt_EX=0, inst_rd_EX=0, inst_shamt_EX=0;
+    reg [4:0] inst_shamt_EX=0;
     reg [3:0] ctr_aluop_EX=0;
-    reg ctr_rf_we_EX=0, ctr_branch_EX=0, ctr_jump_EX=0, ctr_mem_we_EX=0, ctr_mem_to_reg_EX=0, ctr_alu_src_EX=0, ctr_shift_EX=0, ctr_branch_eq_EX=0, ctr_branch_leq_EX=0, ctr_jump_reg_EX=0, ctr_jal_EX=0, ctr_sys_EX=0, ctr_shift_var_EX=0, ctr_load_imm_EX=0, ctr_store_half_EX=0, ctr_exce_ret_EX=0, ctr_mfc0_EX=0, ctr_mtc0_EX=0;
+    reg ctr_rf_we_EX=0, ctr_mem_we_EX=0, ctr_mem_to_reg_EX=0, ctr_alu_src_EX=0, ctr_shift_EX=0, ctr_jal_EX=0, ctr_sys_EX=0, ctr_shift_var_EX=0, ctr_load_imm_EX=0, ctr_store_half_EX=0, ctr_exce_ret_EX=0, ctr_mfc0_EX=0, ctr_mtc0_EX=0;
     reg [4:0] rf_aw_EX=0;
 
     always @(posedge clk or posedge rst_EX) begin
@@ -105,21 +119,13 @@ module cpu();
             rf_dr1_EX <= 0;
             rf_dr2_EX <= 0;
             inst_imm_EX <= 0;
-            inst_addr_EX <= 0;
-            inst_rt_EX <= 0;
-            inst_rd_EX <= 0;
             inst_shamt_EX <= 0;
             ctr_aluop_EX <= 0;
             ctr_rf_we_EX <= 0;
-            ctr_branch_EX <= 0;
-            ctr_jump_EX <= 0;
             ctr_mem_we_EX <= 0;
             ctr_mem_to_reg_EX <= 0;
             ctr_alu_src_EX <= 0;
             ctr_shift_EX <= 0;
-            ctr_branch_eq_EX <= 0;
-            ctr_branch_leq_EX <= 0;
-            ctr_jump_reg_EX <= 0;
             ctr_jal_EX <= 0;
             ctr_sys_EX <= 0;
             ctr_shift_var_EX <= 0;
@@ -135,21 +141,13 @@ module cpu();
             rf_dr1_EX <= rf_dr1_ID;
             rf_dr2_EX <= rf_dr2_ID;
             inst_imm_EX <= inst_imm_ID;
-            inst_addr_EX <= inst_addr_ID;
-            inst_rt_EX <= inst_rt_ID;
-            inst_rt_EX <= inst_rt_ID;
             inst_shamt_EX <= inst_shamt_ID;
             ctr_aluop_EX <= ctr_aluop_ID;
             ctr_rf_we_EX <= ctr_rf_we_ID;
-            ctr_branch_EX <= ctr_branch_ID;
-            ctr_jump_EX <= ctr_jump_ID;
             ctr_mem_we_EX <= ctr_mem_we_ID;
             ctr_mem_to_reg_EX <= ctr_mem_to_reg_ID;
             ctr_alu_src_EX <= ctr_alu_src_ID;
             ctr_shift_EX <= ctr_shift_ID;
-            ctr_branch_eq_EX <= ctr_branch_eq_ID;
-            ctr_branch_leq_EX <= ctr_branch_leq_ID;
-            ctr_jump_reg_EX <= ctr_jump_reg_ID;
             ctr_jal_EX <= ctr_jal_ID;
             ctr_sys_EX <= ctr_sys_ID;
             ctr_shift_var_EX <= ctr_shift_var_ID;
@@ -174,19 +172,6 @@ module cpu();
     assign alu_x = ctr_shift_EX ? rf_dr2_EX : rf_dr1_EX;
     assign alu_y = ctr_shift_EX ? shift_target : ctr_alu_src_EX ? inst_imm_EX : rf_dr2_EX;
 
-    // branch
-    wire rs_leq, branch_fulfill;
-    wire [31:0] branch_target;
-
-    assign rs_leq = ($signed(rf_dr1_EX)<=$signed(0)) ? 1'b1 : 1'b0;
-    assign branch_fulfill = ctr_branch_EX ? (ctr_branch_leq_EX ? rs_leq : (alu_eq_EX ~^ ctr_branch_eq_EX)) : 0;
-    assign branch_target = {{14{inst_imm_EX[15]}}, {inst_imm_EX}, 2'b0} + pc4_EX;
-    assign pc_next = /* ctr_exce_ret_EX ? epc
-                   : */ ctr_jump_reg_EX ? rf_dr1_EX
-                   : ctr_jump_EX ? {pc4_EX[31:28], inst_addr_EX, 2'b0}
-                   : branch_fulfill ? branch_target
-                   : pc4_EX;
-
     // sys
     wire [31:0] display;
     wire halt_EX;
@@ -198,8 +183,7 @@ module cpu();
 /* ================= EX ================= */
 
     reg [31:0] pc4_MEM=0, alu_r1_MEM=0, alu_r2_MEM=0, rf_dr2_MEM=0, inst_imm_MEM=0;
-    reg [4:0] inst_rt_MEM=0, inst_rd_MEM=0;
-    reg ctr_rf_we_MEM=0, ctr_jump_MEM=0, ctr_mem_we_MEM=0, ctr_mem_to_reg_MEM=0, ctr_alu_src_MEM=0, ctr_jal_MEM=0, ctr_load_imm_MEM=0, ctr_store_half_MEM=0, ctr_exce_ret_MEM=0, ctr_mfc0_MEM=0, ctr_mtc0_MEM=0;
+    reg ctr_rf_we_MEM=0, ctr_mem_we_MEM=0, ctr_mem_to_reg_MEM=0, ctr_alu_src_MEM=0, ctr_jal_MEM=0, ctr_load_imm_MEM=0, ctr_store_half_MEM=0, ctr_exce_ret_MEM=0, ctr_mfc0_MEM=0, ctr_mtc0_MEM=0;
     reg [4:0] rf_aw_MEM=0;
     reg halt_MEM=0;
 
@@ -210,10 +194,7 @@ module cpu();
             alu_r2_MEM <= 0;
             rf_dr2_MEM <= 0;
             inst_imm_MEM <= 0;
-            inst_rt_MEM <= 0;
-            inst_rd_MEM <= 0;
             ctr_rf_we_MEM <= 0;
-            ctr_jump_MEM <= 0;
             ctr_mem_we_MEM <= 0;
             ctr_mem_to_reg_MEM <= 0;
             ctr_alu_src_MEM <= 0;
@@ -232,10 +213,7 @@ module cpu();
             alu_r2_MEM <= alu_r2_EX;
             rf_dr2_MEM <= rf_dr2_EX;
             inst_imm_MEM <= inst_imm_EX;
-            inst_rt_MEM <= inst_rt_EX;
-            inst_rd_MEM <= inst_rd_EX;
             ctr_rf_we_MEM <= ctr_rf_we_EX;
-            ctr_jump_MEM <= ctr_jump_EX;
             ctr_mem_we_MEM <= ctr_mem_we_EX;
             ctr_mem_to_reg_MEM <= ctr_mem_to_reg_EX;
             ctr_alu_src_MEM <= ctr_alu_src_EX;
