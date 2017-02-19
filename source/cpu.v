@@ -402,6 +402,27 @@ module cpu();
         end
     end
 
+    integer jump_cnt = 0;
+    always @(posedge clk) begin
+        if (ctr_jump_reg_ID | ctr_jump_ID) begin
+            jump_cnt = jump_cnt + 1;
+        end
+    end
+
+    integer branch_succeed_cnt = 0;
+    always @(posedge clk) begin
+        if (ctr_branch_ID & ~branch_fulfill) begin
+            branch_succeed_cnt = branch_succeed_cnt + 1;
+        end
+    end
+
+    integer branch_fail_cnt = 0;
+    always @(posedge clk) begin
+        if (branch_fulfill) begin
+            branch_fail_cnt = branch_fail_cnt + 1;
+        end
+    end
+
 
     // test interrupt
     // initial begin
