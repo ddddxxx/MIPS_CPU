@@ -11,7 +11,7 @@ module cpu();
     assign clk = clk_raw & ~halt;
 
     initial begin
-        repeat (4100) begin
+        repeat (2000) begin
             #2 clk_raw = 1;
             #2 clk_raw = 0;
         end
@@ -81,12 +81,12 @@ module cpu();
 
 
     wire [4:0] rf_ar1, rf_ar2, rf_aw_ID;
-    wire [31:0] rf_dr1_ID, rf_dr2_ID, rf_dw_WB;
+    wire [31:0] rf_dr1_raw, rf_dr2_raw, rf_dr1_ID, rf_dr2_ID, rf_dw_WB;
 
     reg [4:0] rf_aw_WB=0;
     reg ctr_rf_we_WB=0;
 
-    regfile regfile_modul(clk, rf_ar1, rf_ar2, rf_aw_WB, ctr_rf_we_WB, rf_dw_WB, rf_dr1_ID, rf_dr2_ID);
+    regfile regfile_modul(clk, rf_ar1, rf_ar2, rf_aw_WB, ctr_rf_we_WB, rf_dw_WB, rf_dr1_raw, rf_dr2_raw);
 
     assign rf_ar1 = ctr_sys_ID ? 32'h4 : inst_rs;
     assign rf_ar2 = ctr_sys_ID ? 32'h2 : inst_rt_ID;
@@ -182,6 +182,16 @@ module cpu();
 
     assign halt_EX = (ctr_sys_EX && rf_dr2_EX==32'ha);
 
+    // redir
+    wire rf_conflict_EX, rf_redir_target1_EX;
+    wire [31:0] rf_redir_content_EX;
+
+    assign rf_conflict_EX = ctr_rf_we_EX & |rf_aw_EX & ((rf_aw_EX==rf_ar1) | (rf_aw_EX==rf_ar2));
+    assign rf_redir_target1_EX = (rf_aw_EX==rf_ar1);
+    assign rf_redir_content_EX = ctr_load_imm_EX ? {{inst_imm_EX[15:0]}, 16'b0}
+                               : ctr_jal_EX ? pc4_EX
+                               : alu_r1_EX;
+
 /* ================= EX ================= */
 
     reg [31:0] pc4_MEM=0, alu_r1_MEM=0, alu_r2_MEM=0, rf_dr2_MEM=0, inst_imm_MEM=0;
@@ -239,6 +249,16 @@ module cpu();
 
     assign ram_din = ctr_store_half_MEM ? {ram_out_MEM[31:16], rf_dr2_MEM[15:0]} : rf_dr2_MEM;
 
+    // redir
+    wire rf_conflict_MEM, rf_redir_target1_MEM;
+    wire [31:0] rf_redir_content_MEM;
+
+    assign rf_conflict_MEM = ctr_rf_we_MEM & |rf_aw_MEM & ((rf_aw_MEM==rf_ar1) | (rf_aw_MEM==rf_ar2));
+    assign rf_redir_target1_MEM = (rf_aw_MEM==rf_ar1);
+    assign rf_redir_content_MEM = ctr_load_imm_MEM ? {{inst_imm_MEM[15:0]}, 16'b0}
+                                : ctr_jal_MEM ? pc4_MEM
+                                : alu_r1_MEM;
+
 /* ================= MEM ================ */
 
     reg [31:0] pc4_WB=0, alu_r1_WB=0, inst_imm_WB=0, ram_out_WB=0;
@@ -284,21 +304,36 @@ module cpu();
 
     register #(.width(1)) halt_reg(clk, 1'b1, halt_WB, halt);
 
+    // redir
+    wire rf_conflict_WB, rf_redir_target1_WB;
+    wire [31:0] rf_redir_content_WB;
+
+    assign rf_conflict_WB = ctr_rf_we_WB & |rf_aw_WB & ((rf_aw_WB==rf_ar1) | (rf_aw_WB==rf_ar2));
+    assign rf_redir_target1_WB = (rf_aw_WB==rf_ar1);
+    assign rf_redir_content_WB = ctr_load_imm_WB ? {{inst_imm_WB[15:0]}, 16'b0}
+                               : ctr_jal_WB ? pc4_WB
+                               : alu_r1_WB;
+
 /* ================= WB ================= */
 
-    wire rf_conflict_EX, rf_conflict_MEM, rf_conflict_WB, rf_conflict;
-
-    assign rf_conflict_EX = ctr_rf_we_EX & |rf_aw_EX & ((rf_aw_EX==rf_ar1) | (rf_aw_EX==rf_ar2));
-    assign rf_conflict_MEM = ctr_rf_we_MEM & |rf_aw_MEM & ((rf_aw_MEM==rf_ar1) | (rf_aw_MEM==rf_ar2));
-    assign rf_conflict_WB = ctr_rf_we_WB & |rf_aw_WB & ((rf_aw_WB==rf_ar1) | (rf_aw_WB==rf_ar2));
-    assign rf_conflict = rf_conflict_EX | rf_conflict_MEM | rf_conflict_WB;
+    wire conflict_load_use, conflict_redirable;
 
     assign pc_in = pc_change ? pc_next : pc4_IF;
     assign rst_ID = pc_change;
 
-    assign pause_IF = rf_conflict;
-    assign rst_EX = rf_conflict;
-    assign pause_ID = rf_conflict;
+    assign conflict_load_use = (rf_conflict_EX & ctr_mem_to_reg_EX) | (rf_conflict_MEM & ctr_mem_to_reg_MEM) | (rf_conflict_WB & ctr_mem_to_reg_WB);
+    assign pause_IF = conflict_load_use;
+    assign rst_EX = conflict_load_use;
+    assign pause_ID = conflict_load_use;
+
+    assign rf_dr1_ID = (rf_conflict_EX & ~ctr_mem_to_reg_EX & rf_redir_target1_EX) ? rf_redir_content_EX
+                     : (rf_conflict_MEM & ~ctr_mem_to_reg_MEM & rf_redir_target1_MEM) ? rf_redir_content_MEM
+                     : (rf_conflict_WB & ~ctr_mem_to_reg_WB & rf_redir_target1_WB) ? rf_redir_content_WB
+                     : rf_dr1_raw;
+    assign rf_dr2_ID = (rf_conflict_EX & ~ctr_mem_to_reg_EX & ~rf_redir_target1_EX) ? rf_redir_content_EX
+                     : (rf_conflict_MEM & ~ctr_mem_to_reg_MEM & ~rf_redir_target1_MEM) ? rf_redir_content_MEM
+                     : (rf_conflict_WB & ~ctr_mem_to_reg_WB & ~rf_redir_target1_WB) ? rf_redir_content_WB
+                     : rf_dr1_raw;
 
 
 /*
@@ -366,7 +401,7 @@ module cpu();
 
     integer conflict_cnt = 0;
     always @(posedge clk) begin
-        if (rf_conflict) begin
+        if (conflict_load_use) begin
             conflict_cnt = conflict_cnt + 1;
         end
     end
