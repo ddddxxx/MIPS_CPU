@@ -9,9 +9,9 @@ module alu(x, y, op, result1, result2, equ);
 
     assign mul = x * y;
 
-    assign result1 = (op==4'h0) ? x << y[4:0] : 32'hz,
-           result1 = (op==4'h1) ? {{32{x[31]}}, x} >>> y[4:0] : 32'hz,
-           result1 = (op==4'h2) ? x >> y[4:0] : 32'hz,
+    assign result1 = (op==4'h0) ? y << x[4:0] : 32'hz,
+           result1 = (op==4'h1) ? {{32{y[31]}}, y} >>> x[4:0] : 32'hz,
+           result1 = (op==4'h2) ? y >> x[4:0] : 32'hz,
            result1 = (op==4'h3) ? mul[31:0] : 32'hz,
            result1 = (op==4'h4) ? x / y : 32'hz,
            result1 = (op==4'h5) ? x + y : 32'hz,

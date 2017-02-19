@@ -75,9 +75,9 @@ module cpu();
 
 
     wire [3:0] ctr_aluop_ID;
-    wire ctr_rf_dst_ID, ctr_rf_we_ID, ctr_branch_ID, ctr_jump_ID, ctr_mem_we_ID, ctr_mem_to_reg_ID, ctr_alu_src_ID, ctr_shift_ID, ctr_branch_eq_ID, ctr_branch_leq_ID, ctr_jump_reg_ID, ctr_jal_ID, ctr_sys_ID, ctr_shift_var_ID, ctr_load_imm_ID, ctr_store_half_ID, ctr_exce_ret_ID, ctr_mfc0_ID, ctr_mtc0_ID;
+    wire ctr_rf_dst_ID, ctr_rf_we_ID, ctr_branch_ID, ctr_jump_ID, ctr_mem_we_ID, ctr_mem_to_reg_ID, ctr_alu_src_ID, ctr_branch_eq_ID, ctr_branch_leq_ID, ctr_jump_reg_ID, ctr_jal_ID, ctr_sys_ID, ctr_shift_imm_ID, ctr_load_imm_ID, ctr_store_half_ID, ctr_exce_ret_ID, ctr_mfc0_ID, ctr_mtc0_ID;
 
-    controller ctrl_modul(inst_op, inst_funct, inst_mf, ctr_aluop_ID, ctr_rf_dst_ID, ctr_rf_we_ID, ctr_branch_ID, ctr_jump_ID, ctr_mem_we_ID, ctr_mem_to_reg_ID, ctr_alu_src_ID, ctr_shift_ID, ctr_branch_eq_ID, ctr_branch_leq_ID, ctr_jump_reg_ID, ctr_jal_ID, ctr_sys_ID, ctr_shift_var_ID, ctr_load_imm_ID, ctr_store_half_ID, ctr_exce_ret_ID, ctr_mfc0_ID, ctr_mtc0_ID);
+    controller ctrl_modul(inst_op, inst_funct, inst_mf, ctr_aluop_ID, ctr_rf_dst_ID, ctr_rf_we_ID, ctr_branch_ID, ctr_jump_ID, ctr_mem_we_ID, ctr_mem_to_reg_ID, ctr_alu_src_ID, ctr_branch_eq_ID, ctr_branch_leq_ID, ctr_jump_reg_ID, ctr_jal_ID, ctr_sys_ID, ctr_shift_imm_ID, ctr_load_imm_ID, ctr_store_half_ID, ctr_exce_ret_ID, ctr_mfc0_ID, ctr_mtc0_ID);
 
 
     wire [4:0] rf_ar1, rf_ar2, rf_aw_ID;
@@ -88,8 +88,8 @@ module cpu();
 
     regfile regfile_modul(clk, rf_ar1, rf_ar2, rf_aw_WB, ctr_rf_we_WB, rf_dw_WB, rf_dr1_raw, rf_dr2_raw);
 
-    assign rf_ar1 = ctr_sys_ID ? 32'h4 : ctr_shift_ID ? inst_rt_ID : inst_rs;
-    assign rf_ar2 = ctr_sys_ID ? 32'h2 : ctr_shift_ID ? inst_rs : inst_rt_ID;
+    assign rf_ar1 = ctr_sys_ID ? 32'h4 : inst_rs;
+    assign rf_ar2 = ctr_sys_ID ? 32'h2 : inst_rt_ID;
     assign rf_aw_ID = ctr_jal_ID ? 5'h1f : ctr_rf_dst_ID ? inst_rd_ID : inst_rt_ID;
 
     // branch
@@ -112,7 +112,7 @@ module cpu();
     reg [31:0] pc4_EX=0, rf_dr1_EX=0, rf_dr2_EX=0, inst_imm_EX=0;
     reg [4:0] inst_shamt_EX=0;
     reg [3:0] ctr_aluop_EX=0;
-    reg ctr_rf_we_EX=0, ctr_mem_we_EX=0, ctr_mem_to_reg_EX=0, ctr_alu_src_EX=0, ctr_shift_EX=0, ctr_jal_EX=0, ctr_sys_EX=0, ctr_shift_var_EX=0, ctr_load_imm_EX=0, ctr_store_half_EX=0, ctr_exce_ret_EX=0, ctr_mfc0_EX=0, ctr_mtc0_EX=0;
+    reg ctr_rf_we_EX=0, ctr_mem_we_EX=0, ctr_mem_to_reg_EX=0, ctr_alu_src_EX=0, ctr_jal_EX=0, ctr_sys_EX=0, ctr_shift_imm_EX=0, ctr_load_imm_EX=0, ctr_store_half_EX=0, ctr_exce_ret_EX=0, ctr_mfc0_EX=0, ctr_mtc0_EX=0;
     reg [4:0] rf_aw_EX=0;
 
     always @(posedge clk) begin
@@ -127,10 +127,9 @@ module cpu();
             ctr_mem_we_EX <= 0;
             ctr_mem_to_reg_EX <= 0;
             ctr_alu_src_EX <= 0;
-            ctr_shift_EX <= 0;
             ctr_jal_EX <= 0;
             ctr_sys_EX <= 0;
-            ctr_shift_var_EX <= 0;
+            ctr_shift_imm_EX <= 0;
             ctr_load_imm_EX <= 0;
             ctr_store_half_EX <= 0;
             ctr_exce_ret_EX <= 0;
@@ -149,10 +148,9 @@ module cpu();
             ctr_mem_we_EX <= ctr_mem_we_ID;
             ctr_mem_to_reg_EX <= ctr_mem_to_reg_ID;
             ctr_alu_src_EX <= ctr_alu_src_ID;
-            ctr_shift_EX <= ctr_shift_ID;
             ctr_jal_EX <= ctr_jal_ID;
             ctr_sys_EX <= ctr_sys_ID;
-            ctr_shift_var_EX <= ctr_shift_var_ID;
+            ctr_shift_imm_EX <= ctr_shift_imm_ID;
             ctr_load_imm_EX <= ctr_load_imm_ID;
             ctr_store_half_EX <= ctr_store_half_ID;
             ctr_exce_ret_EX <= ctr_exce_ret_ID;
@@ -169,10 +167,8 @@ module cpu();
 
     alu alu_modul(alu_x, alu_y, ctr_aluop_EX, alu_r1_EX, alu_r2_EX, alu_eq_EX);
 
-    assign alu_x = rf_dr1_EX;
-    assign alu_y = (ctr_shift_EX & ~ctr_shift_var_EX) ? {{27{inst_shamt_EX[4]}}, inst_shamt_EX}
-                 : ctr_alu_src_EX ? inst_imm_EX
-                 : rf_dr2_EX;
+    assign alu_x = ctr_shift_imm_EX ? {{27{inst_shamt_EX[4]}}, inst_shamt_EX} : rf_dr1_EX;
+    assign alu_y = ctr_alu_src_EX ? inst_imm_EX : rf_dr2_EX;
 
     // sys
     wire [31:0] display;
