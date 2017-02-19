@@ -1,13 +1,13 @@
-module controller(op, funct, mf, aluop, reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, branch_eq, branch_leq, jump_reg, jal, sys, shift_imm, load_imm, store_half, exce_ret, mfc0, mtc0);
+module controller(op, funct, mf, aluop, reg_dst, reg_WE, branch, jump, mem_WE, mem_to_reg, imm_op, branch_eq, branch_leq, jump_reg, jal, sys, shift_imm, load_upper_imm, store_half, exce_ret, mfc0, mtc0);
 
     input [5:0] op, funct;
     input [4:0] mf;
     output [3:0] aluop;
-    output reg_dst, reg_we, branch, jump, mem_we, mem_to_reg, alu_src, branch_eq, branch_leq, jump_reg, jal, sys, shift_imm, load_imm, store_half, exce_ret, mfc0, mtc0;
+    output reg_dst, reg_WE, branch, jump, mem_WE, mem_to_reg, imm_op, branch_eq, branch_leq, jump_reg, jal, sys, shift_imm, load_upper_imm, store_half, exce_ret, mfc0, mtc0;
 
     assign reg_dst = (op==6'b000000) ? 4'b1 : 4'b0;
 
-    assign reg_we = ~((op==6'b101011) ||
+    assign reg_WE = ~((op==6'b101011) ||
                       (op==6'b101001) ||
                       (op==6'b000100) ||
                       (op==6'b000101) ||
@@ -42,11 +42,11 @@ module controller(op, funct, mf, aluop, reg_dst, reg_we, branch, jump, mem_we, m
 
     assign jump = (op[5:1]==5'b00001) ? 4'b1 : 4'b0;
 
-    assign mem_we = ((op==6'b101011) || (op==6'b101001)) ? 4'b1 : 4'b0; // sw, sh
+    assign mem_WE = ((op==6'b101011) || (op==6'b101001)) ? 4'b1 : 4'b0; // sw, sh
 
     assign mem_to_reg = (op==6'b100011) ? 4'b1 : 4'b0;
 
-    assign alu_src = ((op!=6'b000000) && (op[5:1]!=5'b00010)) ? 4'b1 : 4'b0;
+    assign imm_op = ((op!=6'b000000) && (op[5:1]!=5'b00010)) ? 4'b1 : 4'b0;
 
     assign branch_eq = (op==6'b000100) ? 4'b1 : 4'b0;
 
@@ -60,7 +60,7 @@ module controller(op, funct, mf, aluop, reg_dst, reg_we, branch, jump, mem_we, m
 
     assign shift_imm = ((op==6'b000000) && ((funct==6'b000000) || (funct[5:1]==5'b00001))) ? 4'b1 : 4'b0;
 
-    assign load_imm = (op==6'b001111) ? 4'b1 : 4'b0;
+    assign load_upper_imm = (op==6'b001111) ? 4'b1 : 4'b0;
 
     assign store_half = (op==6'b101001) ? 4'b1 : 4'b0;
 
