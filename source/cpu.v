@@ -57,6 +57,7 @@ module cpu();
     wire [31:0] inst_imm_ID;
     wire [5:0] inst_op, inst_funct;
     wire [4:0] inst_rs, inst_rt_ID, inst_rd_ID, inst_shamt_ID, inst_mf;
+    wire [31:0] cp0_out_ID;
 
 
     assign inst_addr_ID = instruction_ID[25:0];
@@ -96,9 +97,9 @@ module cpu();
     assign rf_equ = (rf_dr1_ID==rf_dr2_ID);
     assign branch_fulfill = ctr_branch_ID ? (ctr_branch_leq_ID ? rs_leq : (rf_equ ~^ ctr_branch_eq_ID)) : 0;
     assign branch_target = {inst_imm_ID[29:0], 2'b0} + pc4_ID;
-    assign pc_change = ctr_jump_reg_ID | ctr_jump_ID | branch_fulfill;
-    assign pc_next = /* ctr_exce_ret_ID ? epc
-                   : */ ctr_jump_reg_ID ? rf_dr1_ID
+    assign pc_change = ctr_exce_ret_ID | ctr_jump_reg_ID | ctr_jump_ID | branch_fulfill;
+    assign pc_next = ctr_exce_ret_ID ? epc
+                   : ctr_jump_reg_ID ? rf_dr1_ID
                    : ctr_jump_ID ? {pc4_ID[31:28], inst_addr_ID, 2'b0}
                    : branch_fulfill ? branch_target
                    : pc4_ID;
@@ -110,6 +111,7 @@ module cpu();
     reg [3:0] ctr_aluop_EX=0;
     reg ctr_rf_WE_EX=0, ctr_mem_WE_EX=0, ctr_mem_to_reg_EX=0, ctr_imm_op_EX=0, ctr_jal_EX=0, ctr_sys_EX=0, ctr_shift_imm_EX=0, ctr_load_upper_imm_EX=0, ctr_store_half_EX=0, ctr_exce_ret_EX=0, ctr_mfc0_EX=0, ctr_mtc0_EX=0;
     reg [4:0] rf_aw_EX=0;
+    reg [31:0] cp0_out_EX;
 
     always @(posedge clk) begin
         if (rst_EX) begin
@@ -132,6 +134,7 @@ module cpu();
             ctr_mfc0_EX <= 0;
             ctr_mtc0_EX <= 0;
             rf_aw_EX <= 0;
+            cp0_out_EX <= 0;
         end
         else begin
             pc4_EX <= pc4_ID;
@@ -153,6 +156,7 @@ module cpu();
             ctr_mfc0_EX <= ctr_mfc0_ID;
             ctr_mtc0_EX <= ctr_mtc0_ID;
             rf_aw_EX <= rf_aw_ID;
+            cp0_out_EX <= cp0_out_ID;
         end
     end
 
@@ -190,6 +194,7 @@ module cpu();
     reg ctr_rf_WE_MEM=0, ctr_mem_WE_MEM=0, ctr_mem_to_reg_MEM=0, ctr_imm_op_MEM=0, ctr_jal_MEM=0, ctr_load_upper_imm_MEM=0, ctr_store_half_MEM=0, ctr_exce_ret_MEM=0, ctr_mfc0_MEM=0, ctr_mtc0_MEM=0;
     reg [4:0] rf_aw_MEM=0;
     reg halt_MEM=0;
+    reg [31:0] cp0_out_MEM;
 
     always @(posedge clk) begin
         if (rst_MEM) begin
@@ -210,6 +215,7 @@ module cpu();
             ctr_mtc0_MEM <= 0;
             rf_aw_MEM <= 0;
             halt_MEM <= 0;
+            cp0_out_MEM <= 0;
         end
         else begin
             pc4_MEM <= pc4_EX;
@@ -229,6 +235,7 @@ module cpu();
             ctr_mtc0_MEM <= ctr_mtc0_EX;
             rf_aw_MEM <= rf_aw_EX;
             halt_MEM <= halt_EX;
+            cp0_out_MEM <= cp0_out_EX;
         end
     end
 
@@ -257,6 +264,7 @@ module cpu();
     reg [31:0] pc4_WB=0, alu_r1_WB=0, inst_imm_WB=0, ram_out_WB=0;
     reg ctr_mfc0_WB=0, ctr_load_upper_imm_WB=0, ctr_jal_WB=0, ctr_mem_to_reg_WB=0;
     reg halt_WB=0;
+    reg [31:0] cp0_out_WB;
 
     always @(posedge clk) begin
         if (rst_WB) begin
@@ -271,6 +279,7 @@ module cpu();
             ctr_mem_to_reg_WB <= 0;
             rf_aw_WB <= 0;
             halt_WB <= 0;
+            cp0_out_WB <= 0;
         end
         else begin
             pc4_WB <= pc4_MEM;
@@ -284,13 +293,14 @@ module cpu();
             ctr_mem_to_reg_WB <= ctr_mem_to_reg_MEM;
             rf_aw_WB <= rf_aw_MEM;
             halt_WB <= halt_MEM;
+            cp0_out_WB <= cp0_out_MEM;
         end
     end
 
 /* ================= WB ================= */
 
-    assign rf_dw_WB = /* ctr_mfc0_WB ? cp0_out
-                    : */ctr_load_upper_imm_WB ? {{inst_imm_WB}, 16'b0}
+    assign rf_dw_WB = ctr_mfc0_WB ? cp0_out_WB
+                    : ctr_load_upper_imm_WB ? {{inst_imm_WB}, 16'b0}
                     : ctr_jal_WB ? pc4_WB
                     : ctr_mem_to_reg_WB ? ram_out_WB
                     : alu_r1_WB;
@@ -305,10 +315,21 @@ module cpu();
 
 /* ================= WB ================= */
 
+    // cp0
+    wire interrupt_disable, interrupt_disable_next;
+    wire [2:0] interrupt_mask, interrupt_mask_next;
+    wire [31:0] epc, epc_next;
+    wire interrupt_disable_WE, interrupt_mask_WE, epc_WE;
+
+    wire [31:0] interrupt_entrance;
+    wire [2:0] interrupts;
+    wire has_interrupt;
+
+    // wb
     wire conflict_load_use, conflict_redirable;
 
-    assign pc_in = pc_change ? pc_next : pc4_IF;
-    assign rst_ID = pc_change;
+    assign pc_in = has_interrupt ? interrupt_entrance : pc_change ? pc_next : pc4_IF;
+    assign rst_ID = has_interrupt | pc_change;
 
     assign conflict_load_use = (conflict_EX & ctr_mem_to_reg_EX);
     assign pause_IF = conflict_load_use;
@@ -325,18 +346,7 @@ module cpu();
                      : rf_dr2_raw;
 
 
-/*
     // cp0
-    wire interrupt_disable, interrupt_disable_next;
-    wire [2:0] interrupt_mask, interrupt_mask_next;
-    wire [31:0] epc, epc_next;
-    wire interrupt_disable_WE, interrupt_mask_WE, epc_WE;
-    wire [31:0] cp0_out;
-
-    wire [31:0] interrupt_entrance;
-    wire [2:0] interrupts;
-    wire has_interrupt;
-
     interrupt_driver interrupt_driver_modul(clk, interrupt_signs, interrupt_mask, interrupt_disable, interrupts);
 
     // 0x16, 0o22, 0b10110
@@ -355,25 +365,25 @@ module cpu();
                               : interrupts[0] ? 32'h800 // entrance 3
                               : 32'b0;
 
-    assign interrupt_disable_WE = has_interrupt | ctr_exce_ret | (ctr_mtc0 && (inst_rd==5'h16));
+    assign interrupt_disable_WE = has_interrupt | ctr_exce_ret_ID | (ctr_mtc0_ID && (inst_rd_ID==5'h16));
 
     assign interrupt_disable_next = has_interrupt ? 1'b1
-                                  : ctr_exce_ret ? 1'b0
-                                  : rf_dr2;
+                                  : ctr_exce_ret_ID ? 1'b0
+                                  : rf_dr2_ID;
 
-    assign interrupt_mask_WE = (ctr_mtc0 && (inst_rd==5'h17));
+    assign interrupt_mask_WE = (ctr_mtc0_ID && (inst_rd_ID==5'h17));
 
-    assign interrupt_mask_next = rf_dr2;
+    assign interrupt_mask_next = rf_dr2_ID;
 
-    assign epc_WE = has_interrupt | (ctr_mtc0 && (inst_rd==5'he));
+    assign epc_WE = has_interrupt | (ctr_mtc0_ID && (inst_rd_ID==5'he));
 
-    assign epc_next = has_interrupt ? pc_next : rf_dr2;
+    assign epc_next = has_interrupt ? pc_next : rf_dr2_ID;
 
-    assign cp0_out = (inst_rd==5'h16) ? {31'b0, interrupt_disable}
-                   : (inst_rd==5'h17) ? {29'b0, interrupt_mask}
-                   : (inst_rd==5'h0e) ? epc
-                   : 32'b0;
-*/
+    assign cp0_out_ID = (inst_rd_ID==5'h16) ? {31'b0, interrupt_disable}
+                      : (inst_rd_ID==5'h17) ? {29'b0, interrupt_mask}
+                      : (inst_rd_ID==5'h0e) ? epc
+                      : 32'b0;
+
 
     // output
     initial begin
@@ -418,13 +428,13 @@ module cpu();
 
 
     // test interrupt
-    // initial begin
-    //     #1000 interrupt_signs = 3'b1;
-    //     #700 interrupt_signs = 3'b10;
-    //     #20 interrupt_signs = 3'b00;
-    //     #100 interrupt_signs = 3'b10;
-    //     #20 interrupt_signs = 3'b00;
-    // end
+    initial begin
+        #1000 interrupt_signs = 3'b1;
+        #200 interrupt_signs = 3'b10;
+        #20 interrupt_signs = 3'b00;
+        #100 interrupt_signs = 3'b11;
+        #20 interrupt_signs = 3'b00;
+    end
 
 
 endmodule
