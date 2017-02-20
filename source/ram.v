@@ -2,7 +2,8 @@ module ram(clk, addr, din, WE, dout);
 
     input clk, WE;
     input [9:0] addr;
-    output [31:0] din, dout;
+    input [31:0] din;
+    output [31:0] dout;
 
     reg [31:0] mem[0:1023];
 

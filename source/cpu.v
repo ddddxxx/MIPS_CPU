@@ -1,21 +1,13 @@
-module cpu();
+module cpu(clk_in, interrupt_signs, display, clk_cnt, conflict_cnt, jump_cnt, branch_succeed_cnt, branch_fail_cnt);
 
-    // interrupt
-    reg [2:0] interrupt_signs = 3'b0;   // io
-
+    input clk_in;
+    input [2:0] interrupt_signs;
+    output [31:0] display, clk_cnt, conflict_cnt, jump_cnt, branch_succeed_cnt, branch_fail_cnt;
 
     // clk
-    reg clk_raw = 0;
     wire clk;
 
-    assign clk = clk_raw & ~halt;
-
-    initial begin
-        repeat (2300) begin
-            #2 clk_raw = 1;
-            #2 clk_raw = 0;
-        end
-    end
+    assign clk = clk_in & ~halt;
 
     wire rst_ID, rst_EX, rst_MEM, rst_WB, pause_IF, pause_ID;
 
@@ -171,7 +163,6 @@ module cpu();
     assign alu_y = ctr_imm_op_EX ? inst_imm_EX : rf_dr2_EX;
 
     // sys
-    wire [31:0] display;
     wire halt_EX;
 
     register display_reg(clk, rf_dr1_EX, ctr_sys_EX, display);
@@ -385,55 +376,38 @@ module cpu();
                       : 32'b0;
 
 
-    // output
-    initial begin
-        $dumpfile("cpu.vcd");
-        $dumpvars(2, cpu);
-    end
-
-
     // counter
-    integer clk_cnt = 0;
+    reg [31:0] clk_cnt = 0;
     always @(posedge clk) begin
         clk_cnt <= clk_cnt + 1;
     end
 
-    integer conflict_cnt = 0;
+    reg [31:0] conflict_cnt = 0;
     always @(posedge clk) begin
         if (conflict_load_use) begin
             conflict_cnt = conflict_cnt + 1;
         end
     end
 
-    integer jump_cnt = 0;
+    reg [31:0] jump_cnt = 0;
     always @(posedge clk) begin
         if (ctr_jump_reg_ID | ctr_jump_ID) begin
             jump_cnt = jump_cnt + 1;
         end
     end
 
-    integer branch_succeed_cnt = 0;
+    reg [31:0] branch_succeed_cnt = 0;
     always @(posedge clk) begin
         if (ctr_branch_ID & ~branch_fulfill) begin
             branch_succeed_cnt = branch_succeed_cnt + 1;
         end
     end
 
-    integer branch_fail_cnt = 0;
+    reg [31:0] branch_fail_cnt = 0;
     always @(posedge clk) begin
         if (branch_fulfill) begin
             branch_fail_cnt = branch_fail_cnt + 1;
         end
-    end
-
-
-    // test interrupt
-    initial begin
-        #1000 interrupt_signs = 3'b1;
-        #200 interrupt_signs = 3'b10;
-        #20 interrupt_signs = 3'b00;
-        #100 interrupt_signs = 3'b11;
-        #20 interrupt_signs = 3'b00;
     end
 
 
