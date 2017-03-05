@@ -1,6 +1,6 @@
 # MIPS CPU
 
-- Author: 邓翔
+[![No Maintenance Intended](http://unmaintained.tech/badge.svg)](http://unmaintained.tech/)
 
 A MIPS architecture CPU with 5 pipeline stages.
 
